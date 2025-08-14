@@ -13,11 +13,15 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: string | Date): string {
+  if (!date) return 'Unknown date'
+  const dateObj = new Date(date)
+  if (isNaN(dateObj.getTime())) return 'Invalid date'
+  
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date))
+  }).format(dateObj)
 }
 
 export function truncateText(text: string, maxLength: number): string {

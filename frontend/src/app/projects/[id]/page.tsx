@@ -192,7 +192,7 @@ export default function ProjectDetailPage() {
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <div className="flex items-center">
                     <ClockIcon className="h-4 w-4 mr-1" />
-                    Posted {formatDate(project.createdAt)}
+                    Posted {formatDate(project.created_at)}
                   </div>
                   <div className="flex items-center">
                     <UserIcon className="h-4 w-4 mr-1" />
