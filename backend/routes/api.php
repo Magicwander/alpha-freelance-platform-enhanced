@@ -103,5 +103,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/stats', [AdminController::class, 'systemStats']);
         Route::put('/admin/users/{user}/status', [AdminController::class, 'updateUserStatus']);
         Route::post('/admin/disputes/{dispute}/resolve', [AdminController::class, 'resolveDispute']);
+        
+        // Reporting endpoints
+        Route::get('/admin/reports/users', [AdminController::class, 'generateUserReport']);
+        Route::get('/admin/reports/projects', [AdminController::class, 'generateProjectReport']);
+        Route::get('/admin/reports/financial', [AdminController::class, 'generateFinancialReport']);
+        Route::get('/admin/reports/disputes', [AdminController::class, 'generateDisputeReport']);
+        Route::get('/admin/export', [AdminController::class, 'exportData']);
     });
 });
