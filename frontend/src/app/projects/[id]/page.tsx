@@ -181,11 +181,11 @@ export default function ProjectDetailPage() {
                 <div className="mb-6">
                   <h4 className="font-semibold mb-3">Required Skills:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {project.skills.map((skill) => (
+                    {project.skills?.map((skill) => (
                       <Badge key={skill} variant="outline">
                         {skill}
                       </Badge>
-                    ))}
+                    )) || <span className="text-gray-500">No skills specified</span>}
                   </div>
                 </div>
 
