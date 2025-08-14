@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\DisputeController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\ProjectBreakdownController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -59,6 +61,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{payment}/refund', [PaymentController::class, 'requestRefund']);
     Route::post('/payments/{payment}/process-refund', [PaymentController::class, 'processRefund']);
     
+    // Wallet management routes
+    Route::get('/wallet/info', [PaymentController::class, 'getWallet']);
+    Route::post('/wallet/deposit', [PaymentController::class, 'deposit']);
+    Route::post('/wallet/withdraw', [PaymentController::class, 'withdraw']);
+    
     // Dispute routes
     Route::get('/disputes', [DisputeController::class, 'index']);
     Route::post('/disputes', [DisputeController::class, 'store']);
@@ -79,6 +86,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
     Route::get('/wallet/statistics', [WalletController::class, 'statistics']);
     Route::post('/wallet/add-funds', [WalletController::class, 'addFunds']);
-    Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
     Route::post('/wallet/regenerate', [WalletController::class, 'regenerateAddress']);
+    
+    // Project breakdown and AI features
+    Route::post('/projects/{project}/breakdown', [ProjectBreakdownController::class, 'generateBreakdown']);
+    Route::post('/projects/{project}/research', [ProjectBreakdownController::class, 'researchProject']);
+    Route::get('/projects/{project}/analysis', [ProjectBreakdownController::class, 'getComprehensiveAnalysis']);
+    
+    // Admin routes
+    Route::middleware('admin')->group(function () {
+        Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+        Route::get('/admin/users', [AdminController::class, 'users']);
+        Route::get('/admin/projects', [AdminController::class, 'projects']);
+        Route::get('/admin/payments', [AdminController::class, 'payments']);
+        Route::get('/admin/disputes', [AdminController::class, 'disputes']);
+        Route::get('/admin/stats', [AdminController::class, 'systemStats']);
+        Route::put('/admin/users/{user}/status', [AdminController::class, 'updateUserStatus']);
+        Route::post('/admin/disputes/{dispute}/resolve', [AdminController::class, 'resolveDispute']);
+    });
 });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Project;
+use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -294,5 +295,173 @@ class PaymentController extends Controller
                 'message' => 'Refund processing failed'
             ], 500);
         }
+    }
+
+    /**
+     * Get user wallet information.
+     */
+    public function getWallet(Request $request)
+    {
+        $wallet = $request->user()->wallet;
+        
+        if (!$wallet) {
+            // Create wallet if doesn't exist
+            $wallet = Wallet::create([
+                'user_id' => $request->user()->id,
+                'address' => '0x' . bin2hex(random_bytes(20)),
+                'private_key' => bin2hex(random_bytes(32)),
+                'balance_usdt' => 0.00,
+            ]);
+        }
+
+        return response()->json([
+            'wallet' => $wallet,
+            'recent_transactions' => $this->getRecentTransactions($request->user()->id)
+        ]);
+    }
+
+    /**
+     * Deposit funds to wallet.
+     */
+    public function deposit(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:1|max:10000',
+            'payment_method' => 'required|in:crypto,bank_transfer,paypal',
+            'transaction_hash' => 'required_if:payment_method,crypto|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Create payment record
+            $payment = Payment::create([
+                'project_id' => null,
+                'payer_id' => null, // External deposit
+                'payee_id' => $request->user()->id,
+                'amount' => $request->amount,
+                'type' => 'deposit',
+                'status' => 'pending',
+                'payment_method' => $request->payment_method,
+                'transaction_hash' => $request->transaction_hash ?? null,
+                'description' => 'Wallet deposit via ' . $request->payment_method,
+            ]);
+
+            // For demo purposes, auto-approve crypto deposits
+            if ($request->payment_method === 'crypto') {
+                $payment->update(['status' => 'completed']);
+                
+                // Ensure user has a wallet
+                $wallet = $request->user()->wallet;
+                if (!$wallet) {
+                    $wallet = Wallet::create([
+                        'user_id' => $request->user()->id,
+                        'address' => '0x' . bin2hex(random_bytes(20)),
+                        'private_key' => bin2hex(random_bytes(32)),
+                        'balance_usdt' => 0.00,
+                    ]);
+                }
+                
+                $wallet->increment('balance_usdt', $request->amount);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Deposit initiated successfully',
+                'payment' => $payment,
+                'wallet' => $request->user()->wallet->fresh()
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'message' => 'Deposit failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Withdraw funds from wallet.
+     */
+    public function withdraw(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:10|max:' . $request->user()->wallet->balance_usdt,
+            'withdrawal_method' => 'required|in:crypto,bank_transfer,paypal',
+            'destination_address' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+        $wallet = $user->wallet;
+
+        if ($wallet->balance_usdt < $request->amount) {
+            return response()->json([
+                'message' => 'Insufficient balance'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Deduct from wallet
+            $wallet->decrement('balance_usdt', $request->amount);
+
+            // Create withdrawal record
+            $payment = Payment::create([
+                'project_id' => null,
+                'payer_id' => $user->id,
+                'payee_id' => null, // External withdrawal
+                'amount' => $request->amount,
+                'type' => 'withdrawal',
+                'status' => 'pending',
+                'payment_method' => $request->withdrawal_method,
+                'destination_address' => $request->destination_address,
+                'description' => 'Wallet withdrawal via ' . $request->withdrawal_method,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Withdrawal request submitted successfully',
+                'payment' => $payment,
+                'wallet' => $wallet->fresh()
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'message' => 'Withdrawal failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get recent transactions for user.
+     */
+    private function getRecentTransactions($userId)
+    {
+        return Payment::where(function($query) use ($userId) {
+            $query->where('payer_id', $userId)
+                  ->orWhere('payee_id', $userId);
+        })
+        ->with(['project', 'payer', 'payee'])
+        ->orderBy('created_at', 'desc')
+        ->take(10)
+        ->get();
     }
 }

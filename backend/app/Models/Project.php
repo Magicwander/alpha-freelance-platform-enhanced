@@ -19,6 +19,10 @@ class Project extends Model
         'status',
         'images',
         'ai_breakdown',
+        'breakdown_generated_at',
+        'research_data',
+        'research_query',
+        'research_generated_at',
         'deadline',
         'assigned_to',
     ];
@@ -28,9 +32,11 @@ class Project extends Model
         return [
             'skills' => 'array',
             'images' => 'array',
-            'ai_breakdown' => 'array',
+            'research_data' => 'array',
             'budget' => 'decimal:2',
             'deadline' => 'datetime',
+            'breakdown_generated_at' => 'datetime',
+            'research_generated_at' => 'datetime',
         ];
     }
 
