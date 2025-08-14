@@ -307,9 +307,18 @@ class ApiClient {
     comment: string;
     type: 'consumer_to_provider' | 'provider_to_consumer';
   }) {
+    // Transform reviewee_id to reviewed_user_id for API compatibility
+    const apiData = {
+      project_id: data.project_id,
+      reviewed_user_id: data.reviewee_id,
+      rating: data.rating,
+      comment: data.comment,
+      type: data.type,
+    };
+    
     return this.request('/reviews', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(apiData),
     });
   }
 
