@@ -45,6 +45,9 @@ export default function Header() {
                 <Link href="/disputes" className="text-gray-700 hover:text-blue-600 transition-colors">
                   Disputes
                 </Link>
+                <Link href="/admin" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Admin
+                </Link>
               </>
             )}
             <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
