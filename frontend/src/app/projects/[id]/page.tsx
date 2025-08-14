@@ -396,7 +396,7 @@ export default function ProjectDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Status:</span>
                   <Badge variant={project.status === 'open' ? 'default' : 'secondary'}>
-                    {project.status.replace('_', ' ').toUpperCase()}
+                    {project.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                   </Badge>
                 </div>
               </CardContent>
