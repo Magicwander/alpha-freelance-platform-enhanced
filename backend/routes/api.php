@@ -40,6 +40,10 @@ Route::get('/projects/{project}/reviews', [ReviewController::class, 'projectRevi
 Route::middleware('auth:sanctum')->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+// Special route with custom auth middleware for testing
+Route::middleware('api.auth')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/upload-avatar', [AuthController::class, 'uploadAvatar']);
