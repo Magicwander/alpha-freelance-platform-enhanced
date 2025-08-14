@@ -80,6 +80,9 @@ export default function AdminDashboard() {
   const [disputes, setDisputes] = useState<DisputeWithDetails[]>([])
   const [projects, setProjects] = useState<ProjectWithDetails[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [serviceProviders, setServiceProviders] = useState<any[]>([])
+  const [consumers, setConsumers] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [selectedDispute, setSelectedDispute] = useState<DisputeWithDetails | null>(null)
   const [resolution, setResolution] = useState('')
@@ -87,6 +90,8 @@ export default function AdminDashboard() {
   const [disputeStatus, setDisputeStatus] = useState('')
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [userFilter, setUserFilter] = useState('all')
+  const [userSearch, setUserSearch] = useState('')
 
   useEffect(() => {
     loadAdminData()
@@ -104,9 +109,28 @@ export default function AdminDashboard() {
       const projectsResponse = await apiClient.getProjects()
       setProjects(projectsResponse.projects || [])
       
-      // Calculate stats (mock data for now)
+      // Load users data
+      try {
+        const serviceProvidersResponse = await apiClient.get('/admin/service-providers')
+        setServiceProviders(serviceProvidersResponse.data || [])
+        
+        const consumersResponse = await apiClient.get('/admin/consumers')
+        setConsumers(consumersResponse.data || [])
+        
+        // Combine all users
+        const allUsers = [...(serviceProvidersResponse.data || []), ...(consumersResponse.data || [])]
+        setUsers(allUsers)
+      } catch (userErr) {
+        console.error('Failed to load users:', userErr)
+        setServiceProviders([])
+        setConsumers([])
+        setUsers([])
+      }
+      
+      // Calculate stats
+      const totalUsers = users.length || 156 // fallback to mock data
       setStats({
-        totalUsers: 156,
+        totalUsers,
         totalProjects: projectsResponse.projects?.length || 0,
         totalDisputes: disputesResponse.disputes?.length || 0,
         totalRevenue: 125000,
@@ -143,6 +167,33 @@ export default function AdminDashboard() {
       loadAdminData()
     } catch (err: any) {
       console.error('Failed to resolve dispute:', err)
+    }
+  }
+
+  const handleToggleUserStatus = async (userId: number, newStatus: string, reason?: string) => {
+    try {
+      await apiClient.put(`/admin/users/${userId}/toggle-status`, {
+        status: newStatus,
+        reason: reason || 'Admin action'
+      })
+      
+      setSuccessMessage(`User ${newStatus} successfully!`)
+      setShowSuccessDialog(true)
+      setTimeout(() => setShowSuccessDialog(false), 3000)
+      
+      // Reload data
+      loadAdminData()
+    } catch (err: any) {
+      console.error('Failed to toggle user status:', err)
+    }
+  }
+
+  const loadUserDetails = async (userId: number) => {
+    try {
+      const response = await apiClient.get(`/admin/users/${userId}/details`)
+      setSelectedUser(response.user)
+    } catch (err: any) {
+      console.error('Failed to load user details:', err)
     }
   }
 
@@ -254,6 +305,7 @@ export default function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="disputes">Disputes</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
@@ -380,6 +432,179 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="users" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage service providers and consumers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* User Filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Select value={userFilter} onValueChange={setUserFilter}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue placeholder="Filter users" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="provider">Service Providers</SelectItem>
+                      <SelectItem value="consumer">Consumers</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Search users..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+
+                {/* User Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-blue-800">Service Providers</h4>
+                    <p className="text-2xl font-bold text-blue-600">{serviceProviders.length}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800">Consumers</h4>
+                    <p className="text-2xl font-bold text-green-600">{consumers.length}</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800">Total Users</h4>
+                    <p className="text-2xl font-bold text-purple-600">{users.length}</p>
+                  </div>
+                </div>
+
+                {/* Users List */}
+                <div className="space-y-4">
+                  {users.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No users found
+                    </div>
+                  ) : (
+                    users
+                      .filter(user => {
+                        if (userFilter === 'all') return true
+                        if (userFilter === 'provider') return user.role === 'provider'
+                        if (userFilter === 'consumer') return user.role === 'consumer'
+                        if (userFilter === 'active') return user.status === 'active'
+                        if (userFilter === 'suspended') return user.status === 'suspended'
+                        return true
+                      })
+                      .filter(user => 
+                        userSearch === '' || 
+                        user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        user.email.toLowerCase().includes(userSearch.toLowerCase())
+                      )
+                      .map((user) => (
+                        <div key={user.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center space-x-3">
+                              <img 
+                                src={user.avatar} 
+                                alt={user.name}
+                                className="w-12 h-12 rounded-full object-cover"
+                              />
+                              <div>
+                                <h3 className="font-semibold">{user.name}</h3>
+                                <p className="text-sm text-gray-600">{user.email}</p>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <Badge variant={user.role === 'provider' ? 'default' : 'secondary'}>
+                                    {user.role === 'provider' ? 'Service Provider' : 'Consumer'}
+                                  </Badge>
+                                  <Badge variant={user.status === 'active' ? 'outline' : 'destructive'}>
+                                    {user.status}
+                                  </Badge>
+                                  {user.is_verified && (
+                                    <Badge variant="secondary">Verified</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600">
+                                Rating: {user.rating || 'N/A'}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                Balance: ${user.wallet?.balance_usdt || '0.00'}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Joined: {formatDate(user.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="mb-3">
+                            <p className="text-sm text-gray-700">{user.bio}</p>
+                            {user.skills && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {user.skills.slice(0, 3).map((skill: string, index: number) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                                {user.skills.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{user.skills.length - 3} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center border-t pt-3">
+                            <div className="flex space-x-2">
+                              <Button
+                                onClick={() => loadUserDetails(user.id)}
+                                size="sm"
+                                variant="outline"
+                              >
+                                View Details
+                              </Button>
+                              {user.status === 'active' ? (
+                                <Button
+                                  onClick={() => handleToggleUserStatus(user.id, 'suspended')}
+                                  size="sm"
+                                  variant="destructive"
+                                >
+                                  Suspend
+                                </Button>
+                              ) : (
+                                <Button
+                                  onClick={() => handleToggleUserStatus(user.id, 'active')}
+                                  size="sm"
+                                  variant="default"
+                                >
+                                  Activate
+                                </Button>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {user.role === 'provider' && user.statistics && (
+                                <span>
+                                  {user.statistics.total_bids} bids, 
+                                  {user.statistics.won_projects} projects won
+                                </span>
+                              )}
+                              {user.role === 'consumer' && user.statistics && (
+                                <span>
+                                  {user.statistics.total_projects_created} projects created
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="payments" className="space-y-6">
           <Card>
             <CardHeader>
@@ -488,6 +713,204 @@ export default function AdminDashboard() {
               >
                 Resolve Dispute
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Details Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">User Details</h3>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedUser(null)}
+              >
+                Close
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <img 
+                    src={selectedUser.avatar} 
+                    alt={selectedUser.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                  <div>
+                    <h4 className="text-lg font-semibold">{selectedUser.name}</h4>
+                    <p className="text-gray-600">{selectedUser.email}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Badge variant={selectedUser.role === 'provider' ? 'default' : 'secondary'}>
+                        {selectedUser.role === 'provider' ? 'Service Provider' : 'Consumer'}
+                      </Badge>
+                      <Badge variant={selectedUser.status === 'active' ? 'outline' : 'destructive'}>
+                        {selectedUser.status}
+                      </Badge>
+                      {selectedUser.is_verified && (
+                        <Badge variant="secondary">Verified</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h5 className="font-medium mb-2">Bio</h5>
+                  <p className="text-sm text-gray-700">{selectedUser.bio || 'No bio provided'}</p>
+                </div>
+                
+                {selectedUser.skills && (
+                  <div>
+                    <h5 className="font-medium mb-2">Skills</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.skills.map((skill: string, index: number) => (
+                        <Badge key={index} variant="outline">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <h5 className="font-medium mb-2">Account Info</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Rating:</span> {selectedUser.rating || 'N/A'}</p>
+                    <p><span className="font-medium">Total Projects:</span> {selectedUser.total_projects || 0}</p>
+                    <p><span className="font-medium">Joined:</span> {formatDate(selectedUser.created_at)}</p>
+                    <p><span className="font-medium">Last Activity:</span> {selectedUser.statistics?.last_activity ? formatDate(selectedUser.statistics.last_activity) : 'N/A'}</p>
+                  </div>
+                </div>
+                
+                {selectedUser.wallet && (
+                  <div>
+                    <h5 className="font-medium mb-2">Wallet</h5>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">USDT Balance:</span> ${selectedUser.wallet.balance_usdt}</p>
+                      <p><span className="font-medium">ETH Balance:</span> {selectedUser.wallet.balance_eth} ETH</p>
+                      <p><span className="font-medium">Escrow Balance:</span> ${selectedUser.wallet.escrow_balance}</p>
+                      <p><span className="font-medium">Address:</span> <code className="text-xs">{selectedUser.wallet.address}</code></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Activity & Statistics */}
+              <div className="space-y-4">
+                {selectedUser.statistics && (
+                  <div>
+                    <h5 className="font-medium mb-2">Statistics</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedUser.role === 'provider' && (
+                        <>
+                          <div className="bg-blue-50 p-3 rounded">
+                            <p className="text-sm text-blue-600">Total Bids</p>
+                            <p className="text-lg font-semibold text-blue-800">{selectedUser.statistics.total_bids || 0}</p>
+                          </div>
+                          <div className="bg-green-50 p-3 rounded">
+                            <p className="text-sm text-green-600">Projects Won</p>
+                            <p className="text-lg font-semibold text-green-800">{selectedUser.statistics.won_projects || 0}</p>
+                          </div>
+                          <div className="bg-purple-50 p-3 rounded">
+                            <p className="text-sm text-purple-600">Completion Rate</p>
+                            <p className="text-lg font-semibold text-purple-800">{selectedUser.statistics.completion_rate || 0}%</p>
+                          </div>
+                          <div className="bg-yellow-50 p-3 rounded">
+                            <p className="text-sm text-yellow-600">Total Earned</p>
+                            <p className="text-lg font-semibold text-yellow-800">${selectedUser.statistics.total_earned || 0}</p>
+                          </div>
+                        </>
+                      )}
+                      {selectedUser.role === 'consumer' && (
+                        <>
+                          <div className="bg-blue-50 p-3 rounded">
+                            <p className="text-sm text-blue-600">Projects Created</p>
+                            <p className="text-lg font-semibold text-blue-800">{selectedUser.statistics.total_projects_created || 0}</p>
+                          </div>
+                          <div className="bg-green-50 p-3 rounded">
+                            <p className="text-sm text-green-600">Total Spent</p>
+                            <p className="text-lg font-semibold text-green-800">${selectedUser.statistics.total_spent || 0}</p>
+                          </div>
+                          <div className="bg-purple-50 p-3 rounded">
+                            <p className="text-sm text-purple-600">Avg Rating Given</p>
+                            <p className="text-lg font-semibold text-purple-800">{selectedUser.statistics.average_rating_given || 'N/A'}</p>
+                          </div>
+                          <div className="bg-orange-50 p-3 rounded">
+                            <p className="text-sm text-orange-600">Disputes Raised</p>
+                            <p className="text-lg font-semibold text-orange-800">{selectedUser.statistics.total_disputes_raised || 0}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Recent Projects */}
+                {selectedUser.projects && selectedUser.projects.length > 0 && (
+                  <div>
+                    <h5 className="font-medium mb-2">Recent Projects</h5>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {selectedUser.projects.map((project: any) => (
+                        <div key={project.id} className="border rounded p-2">
+                          <p className="font-medium text-sm">{project.title}</p>
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>{formatCurrency(project.budget)}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {project.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Recent Reviews */}
+                {selectedUser.received_reviews && selectedUser.received_reviews.length > 0 && (
+                  <div>
+                    <h5 className="font-medium mb-2">Recent Reviews</h5>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {selectedUser.received_reviews.map((review: any) => (
+                        <div key={review.id} className="border rounded p-2">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-sm font-medium">Rating: {review.rating}/5</span>
+                            <span className="text-xs text-gray-500">{formatDate(review.created_at)}</span>
+                          </div>
+                          <p className="text-xs text-gray-700">{review.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-2 mt-6 pt-4 border-t">
+              {selectedUser.status === 'active' ? (
+                <Button
+                  onClick={() => {
+                    handleToggleUserStatus(selectedUser.id, 'suspended')
+                    setSelectedUser(null)
+                  }}
+                  variant="destructive"
+                >
+                  Suspend User
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    handleToggleUserStatus(selectedUser.id, 'active')
+                    setSelectedUser(null)
+                  }}
+                  variant="default"
+                >
+                  Activate User
+                </Button>
+              )}
             </div>
           </div>
         </div>

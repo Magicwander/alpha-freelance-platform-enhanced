@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:12001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:12000/api';
 
 class ApiClient {
   private baseURL: string;
@@ -48,6 +48,29 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  // Generic HTTP methods
+  async get(endpoint: string) {
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async post(endpoint: string, data?: any) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put(endpoint: string, data?: any) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete(endpoint: string) {
+    return this.request(endpoint, { method: 'DELETE' });
   }
 
   // Auth endpoints

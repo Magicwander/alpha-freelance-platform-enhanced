@@ -80,22 +80,22 @@ class User extends Authenticatable
 
     public function sentPayments()
     {
-        return $this->hasMany(Payment::class, 'from_user_id');
+        return $this->hasMany(Payment::class, 'payer_id');
     }
 
     public function receivedPayments()
     {
-        return $this->hasMany(Payment::class, 'to_user_id');
+        return $this->hasMany(Payment::class, 'payee_id');
     }
 
     public function raisedDisputes()
     {
-        return $this->hasMany(Dispute::class, 'raised_by');
+        return $this->hasMany(Dispute::class, 'complainant_id');
     }
 
     public function disputesAgainst()
     {
-        return $this->hasMany(Dispute::class, 'against_user');
+        return $this->hasMany(Dispute::class, 'respondent_id');
     }
 
     public function givenReviews()

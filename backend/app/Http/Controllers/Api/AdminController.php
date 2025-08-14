@@ -234,22 +234,22 @@ class AdminController extends Controller
                 $query->with('project')->latest()->take(10);
             },
             'sentPayments' => function($query) {
-                $query->with(['toUser', 'project'])->latest()->take(10);
+                $query->with(['payee', 'project'])->latest()->take(10);
             },
             'receivedPayments' => function($query) {
-                $query->with(['fromUser', 'project'])->latest()->take(10);
+                $query->with(['payer', 'project'])->latest()->take(10);
             },
             'givenReviews' => function($query) {
-                $query->with(['reviewedUser', 'project'])->latest()->take(10);
+                $query->with(['reviewee', 'project'])->latest()->take(10);
             },
             'receivedReviews' => function($query) {
                 $query->with(['reviewer', 'project'])->latest()->take(10);
             },
             'raisedDisputes' => function($query) {
-                $query->with(['againstUser', 'project'])->latest()->take(5);
+                $query->with(['respondent', 'project'])->latest()->take(5);
             },
             'disputesAgainst' => function($query) {
-                $query->with(['raisedByUser', 'project'])->latest()->take(5);
+                $query->with(['complainant', 'project'])->latest()->take(5);
             }
         ]);
 
