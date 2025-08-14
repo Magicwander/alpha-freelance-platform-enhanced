@@ -229,9 +229,9 @@ class APITester
 
         $projectId = $this->testProjects[0]['id'];
 
-        // Create Bid
+        // Create Bid (90% of budget to avoid auto-acceptance but pass validation)
         $bidData = [
-            'amount' => 800.00,
+            'amount' => 1350.00,
             'proposal' => 'I can complete this project efficiently and deliver high-quality results within the specified timeframe. I have extensive experience in similar projects.',
             'delivery_time' => 14
         ];
@@ -253,8 +253,8 @@ class APITester
 
             // Update Bid
             $updateData = [
-                'amount' => 750.00,
-                'proposal' => 'Updated proposal with better pricing'
+                'amount' => 950.00,
+                'proposal' => 'Updated proposal with better pricing and improved timeline. I can deliver this project with enhanced features and better quality assurance.'
             ];
 
             $response = $this->makeRequest('PUT', "/bids/{$bidId}", $updateData);

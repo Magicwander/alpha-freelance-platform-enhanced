@@ -70,8 +70,8 @@ class BidController extends Controller
             'delivery_time' => $request->delivery_time,
         ]);
 
-        // Auto-accept bid if amount is equal to or lower than budget
-        if ($request->amount <= $project->budget) {
+        // Auto-accept bid if amount is significantly lower than budget (80% or less)
+        if ($request->amount <= ($project->budget * 0.8)) {
             // Accept this bid
             $bid->update(['status' => 'accepted']);
             
