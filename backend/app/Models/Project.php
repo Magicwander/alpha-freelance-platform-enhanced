@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Project extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'title',
+        'description',
+        'category',
+        'skills',
+        'budget',
+        'status',
+        'images',
+        'ai_breakdown',
+        'deadline',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'skills' => 'array',
+            'images' => 'array',
+            'ai_breakdown' => 'array',
+            'budget' => 'decimal:2',
+            'deadline' => 'datetime',
+        ];
+    }
+
+    // Relationships
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function bids()
+    {
+        return $this->hasMany(Bid::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function disputes()
+    {
+        return $this->hasMany(Dispute::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    // Helper methods
+    public function getLowestBid()
+    {
+        return $this->bids()->min('amount');
+    }
+
+    public function getBidCount()
+    {
+        return $this->bids()->count();
+    }
+
+    public function getAcceptedBid()
+    {
+        return $this->bids()->where('status', 'accepted')->first();
+    }
+}
