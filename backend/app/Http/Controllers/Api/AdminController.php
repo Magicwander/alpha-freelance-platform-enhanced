@@ -72,6 +72,115 @@ class AdminController extends Controller
         return response()->json($projects);
     }
 
+    /**
+     * Admin-specific project management
+     */
+    public function updateProject(Request $request, Project $project)
+    {
+        $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|required|string|min:10',
+            'category' => 'sometimes|required|string|max:100',
+            'skills' => 'sometimes|required|array|min:1',
+            'budget' => 'sometimes|required|numeric|min:1|max:1000000',
+            'status' => 'sometimes|required|in:open,in_progress,completed,cancelled',
+            'deadline' => 'nullable|date',
+            'assigned_to' => 'sometimes|nullable|exists:users,id'
+        ]);
+
+        $project->update($request->only([
+            'title', 'description', 'category', 'skills', 'budget', 
+            'status', 'deadline', 'assigned_to'
+        ]));
+
+        return response()->json([
+            'message' => 'Project updated successfully',
+            'project' => $project->load(['user', 'assignedUser', 'bids.user'])
+        ]);
+    }
+
+    /**
+     * Admin can delete any project
+     */
+    public function deleteProject(Request $request, Project $project)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+            'confirm' => 'required|boolean|accepted'
+        ]);
+
+        // Check for active bids or payments
+        $activeBids = $project->bids()->where('status', 'accepted')->count();
+        $pendingPayments = $project->payments()->where('status', 'pending')->count();
+
+        if ($activeBids > 0 || $pendingPayments > 0) {
+            return response()->json([
+                'message' => 'Cannot delete project with active bids or pending payments',
+                'active_bids' => $activeBids,
+                'pending_payments' => $pendingPayments
+            ], 400);
+        }
+
+        // Log the deletion
+        \Log::warning("Admin deleted project", [
+            'admin_id' => auth()->id(),
+            'project_id' => $project->id,
+            'project_title' => $project->title,
+            'reason' => $request->reason
+        ]);
+
+        $project->delete();
+
+        return response()->json([
+            'message' => 'Project deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get detailed project information for admin
+     */
+    public function getProjectDetails(Project $project)
+    {
+        $projectDetails = $project->load([
+            'user:id,name,email,avatar,rating,is_verified',
+            'assignedUser:id,name,email,avatar,rating,is_verified',
+            'bids' => function($query) {
+                $query->with('user:id,name,email,avatar,rating')->latest();
+            },
+            'payments' => function($query) {
+                $query->with(['fromUser:id,name,email', 'toUser:id,name,email'])->latest();
+            },
+            'disputes' => function($query) {
+                $query->with(['raisedByUser:id,name,email', 'againstUser:id,name,email'])->latest();
+            },
+            'reviews' => function($query) {
+                $query->with(['reviewer:id,name,email', 'reviewedUser:id,name,email'])->latest();
+            }
+        ]);
+
+        // Calculate project statistics
+        $stats = [
+            'total_bids' => $project->bids()->count(),
+            'accepted_bids' => $project->bids()->where('status', 'accepted')->count(),
+            'average_bid' => $project->bids()->avg('amount'),
+            'lowest_bid' => $project->bids()->min('amount'),
+            'highest_bid' => $project->bids()->max('amount'),
+            'total_payments' => $project->payments()->sum('amount'),
+            'completed_payments' => $project->payments()->where('status', 'completed')->sum('amount'),
+            'pending_payments' => $project->payments()->where('status', 'pending')->sum('amount'),
+            'total_disputes' => $project->disputes()->count(),
+            'open_disputes' => $project->disputes()->where('status', 'open')->count(),
+            'project_age_days' => $project->created_at->diffInDays(now()),
+            'time_to_completion' => $project->status === 'completed' ? 
+                $project->created_at->diffInDays($project->updated_at) : null,
+        ];
+
+        return response()->json([
+            'project' => $projectDetails,
+            'statistics' => $stats
+        ]);
+    }
+
     public function payments(Request $request)
     {
         $query = Payment::with(['fromUser', 'toUser', 'project']);
@@ -109,6 +218,317 @@ class AdminController extends Controller
             'message' => 'User status updated successfully',
             'user' => $user
         ]);
+    }
+
+    /**
+     * Get detailed user profile information
+     */
+    public function getUserDetails(User $user)
+    {
+        $userDetails = $user->load([
+            'wallet',
+            'projects' => function($query) {
+                $query->withCount('bids')->latest()->take(10);
+            },
+            'bids' => function($query) {
+                $query->with('project')->latest()->take(10);
+            },
+            'sentPayments' => function($query) {
+                $query->with(['toUser', 'project'])->latest()->take(10);
+            },
+            'receivedPayments' => function($query) {
+                $query->with(['fromUser', 'project'])->latest()->take(10);
+            },
+            'givenReviews' => function($query) {
+                $query->with(['reviewedUser', 'project'])->latest()->take(10);
+            },
+            'receivedReviews' => function($query) {
+                $query->with(['reviewer', 'project'])->latest()->take(10);
+            },
+            'raisedDisputes' => function($query) {
+                $query->with(['againstUser', 'project'])->latest()->take(5);
+            },
+            'disputesAgainst' => function($query) {
+                $query->with(['raisedByUser', 'project'])->latest()->take(5);
+            }
+        ]);
+
+        // Calculate additional statistics
+        $stats = [
+            'total_projects_created' => $user->projects()->count(),
+            'total_bids_placed' => $user->bids()->count(),
+            'total_projects_won' => $user->bids()->where('status', 'accepted')->count(),
+            'total_spent' => $user->sentPayments()->where('status', 'completed')->sum('amount'),
+            'total_earned' => $user->receivedPayments()->where('status', 'completed')->sum('amount'),
+            'average_rating_given' => $user->givenReviews()->avg('rating'),
+            'average_rating_received' => $user->receivedReviews()->avg('rating'),
+            'total_disputes_raised' => $user->raisedDisputes()->count(),
+            'total_disputes_against' => $user->disputesAgainst()->count(),
+            'account_age_days' => $user->created_at->diffInDays(now()),
+            'last_activity' => $user->updated_at,
+            'wallet_balance' => $user->wallet ? $user->wallet->balance_usdt : 0,
+            'completion_rate' => $this->calculateCompletionRate($user),
+            'response_time_avg' => $this->calculateAverageResponseTime($user),
+        ];
+
+        return response()->json([
+            'user' => $userDetails,
+            'statistics' => $stats
+        ]);
+    }
+
+    /**
+     * Update user profile (admin only)
+     */
+    public function updateUserProfile(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
+            'role' => 'sometimes|required|in:consumer,provider,admin',
+            'bio' => 'sometimes|nullable|string|max:1000',
+            'skills' => 'sometimes|nullable|array',
+            'is_verified' => 'sometimes|boolean',
+            'status' => 'sometimes|in:active,suspended,banned',
+            'rating' => 'sometimes|numeric|min:0|max:5',
+            'total_projects' => 'sometimes|integer|min:0'
+        ]);
+
+        $user->update($request->only([
+            'name', 'email', 'role', 'bio', 'skills', 
+            'is_verified', 'status', 'rating', 'total_projects'
+        ]));
+
+        return response()->json([
+            'message' => 'User profile updated successfully',
+            'user' => $user->fresh()
+        ]);
+    }
+
+    /**
+     * Get service providers with detailed information
+     */
+    public function getServiceProviders(Request $request)
+    {
+        $query = User::where('role', 'provider')
+            ->with(['wallet', 'receivedReviews', 'bids', 'projects']);
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('bio', 'like', "%{$search}%");
+            });
+        }
+
+        // Skills filter
+        if ($request->has('skills')) {
+            $skills = $request->skills;
+            $query->whereJsonContains('skills', $skills);
+        }
+
+        // Rating filter
+        if ($request->has('min_rating')) {
+            $query->where('rating', '>=', $request->min_rating);
+        }
+
+        // Verification status filter
+        if ($request->has('verified')) {
+            $query->where('is_verified', $request->boolean('verified'));
+        }
+
+        // Status filter
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        $allowedSorts = ['created_at', 'rating', 'total_projects', 'name'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $providers = $query->paginate(20);
+
+        // Add additional statistics for each provider
+        $providers->getCollection()->transform(function ($provider) {
+            $provider->statistics = [
+                'total_bids' => $provider->bids->count(),
+                'won_projects' => $provider->bids->where('status', 'accepted')->count(),
+                'completion_rate' => $this->calculateCompletionRate($provider),
+                'average_rating' => $provider->receivedReviews->avg('rating') ?: 0,
+                'total_reviews' => $provider->receivedReviews->count(),
+                'total_earned' => $provider->receivedPayments()->where('status', 'completed')->sum('amount'),
+                'wallet_balance' => $provider->wallet ? $provider->wallet->balance_usdt : 0,
+            ];
+            return $provider;
+        });
+
+        return response()->json($providers);
+    }
+
+    /**
+     * Get consumers/clients with detailed information
+     */
+    public function getConsumers(Request $request)
+    {
+        $query = User::where('role', 'consumer')
+            ->with(['wallet', 'projects', 'sentPayments', 'givenReviews']);
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Verification status filter
+        if ($request->has('verified')) {
+            $query->where('is_verified', $request->boolean('verified'));
+        }
+
+        // Status filter
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        $allowedSorts = ['created_at', 'total_projects', 'name'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $consumers = $query->paginate(20);
+
+        // Add additional statistics for each consumer
+        $consumers->getCollection()->transform(function ($consumer) {
+            $consumer->statistics = [
+                'total_projects_posted' => $consumer->projects->count(),
+                'completed_projects' => $consumer->projects->where('status', 'completed')->count(),
+                'total_spent' => $consumer->sentPayments()->where('status', 'completed')->sum('amount'),
+                'average_project_budget' => $consumer->projects->avg('budget') ?: 0,
+                'reviews_given' => $consumer->givenReviews->count(),
+                'wallet_balance' => $consumer->wallet ? $consumer->wallet->balance_usdt : 0,
+            ];
+            return $consumer;
+        });
+
+        return response()->json($consumers);
+    }
+
+    /**
+     * Suspend or activate user account
+     */
+    public function toggleUserStatus(Request $request, User $user)
+    {
+        $request->validate([
+            'status' => 'required|in:active,suspended,banned',
+            'reason' => 'required_if:status,suspended,banned|string|max:500'
+        ]);
+
+        $oldStatus = $user->status ?? 'active';
+        $user->update([
+            'status' => $request->status
+        ]);
+
+        // Log the status change (you might want to create a separate audit log table)
+        \Log::info("Admin changed user status", [
+            'admin_id' => auth()->id(),
+            'user_id' => $user->id,
+            'old_status' => $oldStatus,
+            'new_status' => $request->status,
+            'reason' => $request->reason
+        ]);
+
+        return response()->json([
+            'message' => "User account {$request->status} successfully",
+            'user' => $user->fresh()
+        ]);
+    }
+
+    /**
+     * Delete user account (soft delete with data retention)
+     */
+    public function deleteUserAccount(Request $request, User $user)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+            'confirm' => 'required|boolean|accepted'
+        ]);
+
+        // Check if user has active projects or payments
+        $activeProjects = $user->projects()->whereIn('status', ['open', 'in_progress'])->count();
+        $pendingPayments = $user->sentPayments()->where('status', 'pending')->count() + 
+                          $user->receivedPayments()->where('status', 'pending')->count();
+
+        if ($activeProjects > 0 || $pendingPayments > 0) {
+            return response()->json([
+                'message' => 'Cannot delete user with active projects or pending payments',
+                'active_projects' => $activeProjects,
+                'pending_payments' => $pendingPayments
+            ], 400);
+        }
+
+        // Log the deletion
+        \Log::warning("Admin deleted user account", [
+            'admin_id' => auth()->id(),
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'reason' => $request->reason
+        ]);
+
+        // Soft delete or mark as deleted
+        $user->update([
+            'status' => 'deleted',
+            'email' => $user->email . '_deleted_' . time(),
+            'name' => '[DELETED] ' . $user->name
+        ]);
+
+        return response()->json([
+            'message' => 'User account deleted successfully'
+        ]);
+    }
+
+    /**
+     * Calculate completion rate for a user
+     */
+    private function calculateCompletionRate(User $user)
+    {
+        if ($user->role === 'provider') {
+            $acceptedBids = $user->bids()->where('status', 'accepted')->count();
+            $completedProjects = $user->bids()
+                ->where('status', 'accepted')
+                ->whereHas('project', function($query) {
+                    $query->where('status', 'completed');
+                })->count();
+            
+            return $acceptedBids > 0 ? round(($completedProjects / $acceptedBids) * 100, 2) : 0;
+        } else {
+            $totalProjects = $user->projects()->count();
+            $completedProjects = $user->projects()->where('status', 'completed')->count();
+            
+            return $totalProjects > 0 ? round(($completedProjects / $totalProjects) * 100, 2) : 0;
+        }
+    }
+
+    /**
+     * Calculate average response time (placeholder - would need message/communication tracking)
+     */
+    private function calculateAverageResponseTime(User $user)
+    {
+        // This would require a messages/communications table to track response times
+        // For now, return a placeholder
+        return 'N/A';
     }
 
     public function resolveDispute(Request $request, Dispute $dispute)

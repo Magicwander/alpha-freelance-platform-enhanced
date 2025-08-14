@@ -29,6 +29,7 @@ class User extends Authenticatable
         'rating',
         'total_projects',
         'is_verified',
+        'status',
         'verification_hash',
         'hash_generated_at',
     ];

@@ -47,6 +47,11 @@ class Project extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function assignedUser()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
     public function bids()
     {
         return $this->hasMany(Bid::class);

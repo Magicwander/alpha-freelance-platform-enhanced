@@ -115,6 +115,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admin/users/{user}/status', [AdminController::class, 'updateUserStatus']);
         Route::post('/admin/disputes/{dispute}/resolve', [AdminController::class, 'resolveDispute']);
         
+        // Enhanced user management routes
+        Route::get('/admin/users/{user}/details', [AdminController::class, 'getUserDetails']);
+        Route::put('/admin/users/{user}/profile', [AdminController::class, 'updateUserProfile']);
+        Route::put('/admin/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+        Route::delete('/admin/users/{user}/delete', [AdminController::class, 'deleteUserAccount']);
+        
+        // Service provider management routes
+        Route::get('/admin/service-providers', [AdminController::class, 'getServiceProviders']);
+        Route::get('/admin/consumers', [AdminController::class, 'getConsumers']);
+        
+        // Admin project management routes
+        Route::get('/admin/projects/{project}/details', [AdminController::class, 'getProjectDetails']);
+        Route::put('/admin/projects/{project}', [AdminController::class, 'updateProject']);
+        Route::delete('/admin/projects/{project}', [AdminController::class, 'deleteProject']);
+        
         // Reporting endpoints
         Route::get('/admin/reports/users', [AdminController::class, 'generateUserReport']);
         Route::get('/admin/reports/projects', [AdminController::class, 'generateProjectReport']);
