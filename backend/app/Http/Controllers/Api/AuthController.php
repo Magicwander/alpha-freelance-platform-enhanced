@@ -133,6 +133,44 @@ class AuthController extends Controller
         ]);
     }
 
+    public function uploadAvatar(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+        
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if exists
+            if ($user->avatar && file_exists(public_path('storage/' . $user->avatar))) {
+                unlink(public_path('storage/' . $user->avatar));
+            }
+
+            // Store new avatar
+            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            
+            $user->update(['avatar' => $avatarPath]);
+
+            return response()->json([
+                'message' => 'Avatar uploaded successfully',
+                'avatar_url' => asset('storage/' . $avatarPath),
+                'user' => $user->load('wallet')
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'No file uploaded'
+        ], 400);
+    }
+
     public function changePassword(Request $request)
     {
         $validator = Validator::make($request->all(), [

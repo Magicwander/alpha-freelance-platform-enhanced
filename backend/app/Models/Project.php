@@ -20,6 +20,7 @@ class Project extends Model
         'images',
         'ai_breakdown',
         'deadline',
+        'assigned_to',
     ];
 
     protected function casts(): array
