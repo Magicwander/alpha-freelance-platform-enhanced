@@ -161,7 +161,7 @@ export default function ProjectDetailPage() {
                         variant={project.status === 'open' ? 'default' : 
                                 project.status === 'in_progress' ? 'secondary' : 'outline'}
                       >
-                        {project.status.replace('_', ' ').toUpperCase()}
+                        {project.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                       </Badge>
                     </div>
                   </div>
