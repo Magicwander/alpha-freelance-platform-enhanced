@@ -35,6 +35,9 @@ class AuthController extends Controller
             'role' => $request->role,
         ]);
 
+        // Generate unique verification hash
+        $verificationHash = $user->generateVerificationHash();
+
         // Create wallet with welcome bonus
         Wallet::create([
             'user_id' => $user->id,
@@ -47,8 +50,10 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registration successful',
-            'user' => $user,
+            'user' => $user->fresh(),
             'token' => $token,
+            'verification_hash' => $verificationHash,
+            'note' => 'Please save your verification hash. You will need it along with your email to reset your password.',
         ], 201);
     }
 
@@ -244,6 +249,138 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Account deleted successfully'
+        ]);
+    }
+
+    public function requestPasswordReset(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        // Generate new verification hash
+        $verificationHash = $user->generateVerificationHash();
+
+        return response()->json([
+            'message' => 'Password reset hash generated successfully',
+            'verification_hash' => $verificationHash,
+            'expires_at' => $user->hash_generated_at->addHours(24)->toISOString(),
+            'note' => 'Use this hash along with your email to reset your password. Hash expires in 24 hours.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+            'verification_hash' => 'required|string|size:8',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)
+                   ->where('verification_hash', strtoupper($request->verification_hash))
+                   ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Invalid email or verification hash'
+            ], 400);
+        }
+
+        if (!$user->isHashValid()) {
+            return response()->json([
+                'message' => 'Verification hash has expired. Please request a new one.'
+            ], 400);
+        }
+
+        // Update password and clear verification hash
+        $user->update([
+            'password' => Hash::make($request->password),
+            'verification_hash' => null,
+            'hash_generated_at' => null,
+        ]);
+
+        // Revoke all existing tokens for security
+        $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Password reset successfully. Please login with your new password.'
+        ]);
+    }
+
+    public function regenerateHash(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        // Generate new verification hash
+        $verificationHash = $user->generateVerificationHash();
+
+        return response()->json([
+            'message' => 'New verification hash generated successfully',
+            'verification_hash' => $verificationHash,
+            'expires_at' => $user->hash_generated_at->addHours(24)->toISOString(),
+            'note' => 'Your new verification hash. Previous hash is now invalid.',
+        ]);
+    }
+
+    public function getVerificationHash(Request $request)
+    {
+        $user = $request->user();
+        
+        if (!$user->verification_hash || !$user->isHashValid()) {
+            $verificationHash = $user->generateVerificationHash();
+            
+            return response()->json([
+                'message' => 'New verification hash generated',
+                'verification_hash' => $verificationHash,
+                'expires_at' => $user->hash_generated_at->addHours(24)->toISOString(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Current verification hash',
+            'verification_hash' => $user->verification_hash,
+            'expires_at' => $user->hash_generated_at->addHours(24)->toISOString(),
+            'time_remaining' => $user->hash_generated_at->addHours(24)->diffForHumans(),
         ]);
     }
 }

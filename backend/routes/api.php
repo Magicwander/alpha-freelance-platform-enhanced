@@ -20,6 +20,11 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Password reset routes (public)
+Route::post('/password/reset-request', [AuthController::class, 'requestPasswordReset']);
+Route::post('/password/reset', [AuthController::class, 'resetPassword']);
+Route::post('/password/regenerate-hash', [AuthController::class, 'regenerateHash']);
+
 // Public project routes
 Route::get('/projects', [ProjectController::class, 'index']);
 Route::get('/projects/{project}', [ProjectController::class, 'show']);
@@ -39,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/upload-avatar', [AuthController::class, 'uploadAvatar']);
     Route::put('/password', [AuthController::class, 'changePassword']);
     Route::delete('/account', [AuthController::class, 'deleteAccount']);
+    Route::get('/verification-hash', [AuthController::class, 'getVerificationHash']);
     
     // Project routes
     Route::post('/projects', [ProjectController::class, 'store']);

@@ -29,6 +29,8 @@ class User extends Authenticatable
         'rating',
         'total_projects',
         'is_verified',
+        'verification_hash',
+        'hash_generated_at',
     ];
 
     /**
@@ -39,6 +41,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'verification_hash',
     ];
 
     /**
@@ -54,6 +57,7 @@ class User extends Authenticatable
             'skills' => 'array',
             'rating' => 'decimal:2',
             'is_verified' => 'boolean',
+            'hash_generated_at' => 'datetime',
         ];
     }
 
@@ -101,5 +105,35 @@ class User extends Authenticatable
     public function receivedReviews()
     {
         return $this->hasMany(Review::class, 'reviewed_user_id');
+    }
+
+    /**
+     * Generate a unique verification hash for the user
+     */
+    public function generateVerificationHash()
+    {
+        do {
+            $hash = strtoupper(bin2hex(random_bytes(4))); // 8 character hex string
+        } while (self::where('verification_hash', $hash)->exists());
+
+        $this->update([
+            'verification_hash' => $hash,
+            'hash_generated_at' => now(),
+        ]);
+
+        return $hash;
+    }
+
+    /**
+     * Check if verification hash is valid (not expired)
+     */
+    public function isHashValid()
+    {
+        if (!$this->hash_generated_at) {
+            return false;
+        }
+
+        // Hash expires after 24 hours
+        return $this->hash_generated_at->diffInHours(now()) < 24;
     }
 }
