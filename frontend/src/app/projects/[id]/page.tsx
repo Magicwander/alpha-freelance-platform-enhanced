@@ -46,7 +46,8 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setLoading(true)
-      const projectData = await apiClient.getProject(projectId)
+      const response = await apiClient.getProject(projectId)
+      const projectData = response.project || response
       setProject(projectData)
       setProjectBids(projectData.bids || [])
     } catch (err: any) {
