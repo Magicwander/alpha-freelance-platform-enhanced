@@ -55,38 +55,54 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'category' => 'required|string',
-            'skills' => 'required|array',
-            'budget' => 'required|numeric|min:1',
-            'deadline' => 'nullable|date|after:today',
-            'images' => 'nullable|array',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'title' => 'required|string|max:255',
+                'description' => 'required|string',
+                'category' => 'required|string',
+                'skills' => 'required|array',
+                'budget' => 'required|numeric|min:1',
+                'deadline' => 'nullable|date|after:today',
+                'images' => 'nullable|array',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Create project with error handling
+            $project = Project::create([
+                'user_id' => $request->user()->id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'category' => $request->category,
+                'skills' => $request->skills,
+                'budget' => $request->budget,
+                'deadline' => $request->deadline,
+                'images' => $request->images ?? [],
+                'status' => 'open',
+            ]);
+
+            // Load relationships safely
+            $project->load(['user']);
+
             return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Project created successfully',
+                'project' => $project,
+                'id' => $project->id
+            ], 201);
+
+        } catch (\Exception $e) {
+            \Log::error('Project creation failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Failed to create project. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
-
-        $project = Project::create([
-            'user_id' => $request->user()->id,
-            'title' => $request->title,
-            'description' => $request->description,
-            'category' => $request->category,
-            'skills' => $request->skills,
-            'budget' => $request->budget,
-            'deadline' => $request->deadline,
-            'images' => $request->images,
-        ]);
-
-        return response()->json([
-            'message' => 'Project created successfully',
-            'project' => $project->load(['user', 'bids.user'])
-        ], 201);
     }
 
     /**

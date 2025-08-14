@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ProjectBreakdownController;
+use App\Http\Controllers\Api\SimpleProjectController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -48,6 +49,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Project routes
     Route::post('/projects', [ProjectController::class, 'store']);
+    
+    // Simple project routes (cache-free)
+    Route::post('/simple-projects', [SimpleProjectController::class, 'store']);
+    Route::get('/simple-projects', [SimpleProjectController::class, 'index']);
     Route::put('/projects/{project}', [ProjectController::class, 'update']);
     Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
     

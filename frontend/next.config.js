@@ -10,6 +10,9 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    allowedHosts: ['*'],
+  },
 }
 
 module.exports = nextConfig
