@@ -39,15 +39,26 @@ export default function Header() {
                 <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors">
                   Dashboard
                 </Link>
+                <Link href="/my-projects" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  My Projects
+                </Link>
+                <Link href="/my-bids" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  My Bids
+                </Link>
+                <Link href="/wallet" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Wallet
+                </Link>
                 <Link href="/reviews" className="text-gray-700 hover:text-blue-600 transition-colors">
                   Reviews
                 </Link>
                 <Link href="/disputes" className="text-gray-700 hover:text-blue-600 transition-colors">
                   Disputes
                 </Link>
-                <Link href="/admin" className="text-gray-700 hover:text-blue-600 transition-colors">
-                  Admin
-                </Link>
+                {user.role === 'admin' && (
+                  <Link href="/admin" className="text-gray-700 hover:text-blue-600 transition-colors">
+                    Admin
+                  </Link>
+                )}
               </>
             )}
             <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
@@ -61,7 +72,7 @@ export default function Header() {
               <>
                 {user ? (
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
+                    <Link href="/profile" className="flex items-center space-x-2 hover:bg-gray-50 p-2 rounded-md transition-colors">
                       {user.avatar ? (
                         <img 
                           src={user.avatar} 
@@ -77,7 +88,7 @@ export default function Header() {
                           ${user.wallet.balance_usdt} USDT
                         </span>
                       )}
-                    </div>
+                    </Link>
                     <Button onClick={handleLogout} variant="outline">
                       Logout
                     </Button>
@@ -133,6 +144,27 @@ export default function Header() {
                     Dashboard
                   </Link>
                   <Link 
+                    href="/my-projects" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    My Projects
+                  </Link>
+                  <Link 
+                    href="/my-bids" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    My Bids
+                  </Link>
+                  <Link 
+                    href="/wallet" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Wallet
+                  </Link>
+                  <Link 
                     href="/reviews" 
                     className="text-gray-700 hover:text-blue-600 transition-colors"
                     onClick={() => setIsMenuOpen(false)}
@@ -146,6 +178,15 @@ export default function Header() {
                   >
                     Disputes
                   </Link>
+                  {user.role === 'admin' && (
+                    <Link 
+                      href="/admin" 
+                      className="text-gray-700 hover:text-blue-600 transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  )}
                 </>
               )}
               <Link 
@@ -160,7 +201,11 @@ export default function Header() {
                   <>
                     {user ? (
                       <div className="flex flex-col space-y-3">
-                        <div className="flex items-center space-x-2">
+                        <Link 
+                          href="/profile" 
+                          className="flex items-center space-x-2 hover:bg-gray-50 p-2 rounded-md transition-colors"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
                           {user.avatar ? (
                             <img 
                               src={user.avatar} 
@@ -171,7 +216,7 @@ export default function Header() {
                             <UserCircleIcon className="w-8 h-8 text-gray-400" />
                           )}
                           <span className="text-gray-900 font-medium">{user.name}</span>
-                        </div>
+                        </Link>
                         {user.wallet && (
                           <span className="text-blue-600 text-sm font-medium">
                             Balance: ${user.wallet.balance_usdt} USDT

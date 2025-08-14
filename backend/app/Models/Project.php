@@ -32,6 +32,7 @@ class Project extends Model
         return [
             'skills' => 'array',
             'images' => 'array',
+            'ai_breakdown' => 'array',
             'research_data' => 'array',
             'budget' => 'decimal:2',
             'deadline' => 'datetime',
