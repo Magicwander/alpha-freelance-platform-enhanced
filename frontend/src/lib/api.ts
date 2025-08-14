@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:12001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:12000/api';
 
 class ApiClient {
   private baseURL: string;
@@ -188,6 +188,177 @@ class ApiClient {
   async deleteBid(bidId: string) {
     return this.request(`/bids/${bidId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Payment endpoints
+  async getPayments() {
+    return this.request('/payments');
+  }
+
+  async getPayment(id: string) {
+    return this.request(`/payments/${id}`);
+  }
+
+  async createEscrow(projectId: string, data: {
+    amount: number;
+    description?: string;
+  }) {
+    return this.request(`/projects/${projectId}/escrow`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async releaseEscrow(paymentId: string) {
+    return this.request(`/payments/${paymentId}/release`, {
+      method: 'POST',
+    });
+  }
+
+  async markProjectCompleted(projectId: string) {
+    return this.request(`/projects/${projectId}/complete`, {
+      method: 'POST',
+    });
+  }
+
+  async requestRefund(paymentId: string, data: {
+    reason: string;
+  }) {
+    return this.request(`/payments/${paymentId}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Dispute endpoints
+  async getDisputes() {
+    return this.request('/disputes');
+  }
+
+  async getDispute(id: string) {
+    return this.request(`/disputes/${id}`);
+  }
+
+  async createDispute(data: {
+    project_id: number;
+    type: 'payment' | 'quality' | 'deadline' | 'communication' | 'other';
+    description: string;
+    evidence?: string[];
+  }) {
+    return this.request('/disputes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDispute(id: string, data: {
+    status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+    resolution?: string;
+    admin_notes?: string;
+  }) {
+    return this.request(`/disputes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addDisputeMessage(disputeId: string, data: {
+    message: string;
+    attachments?: string[];
+  }) {
+    return this.request(`/disputes/${disputeId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async closeDispute(disputeId: string, data: {
+    resolution: string;
+    winner?: 'consumer' | 'provider' | 'split';
+  }) {
+    return this.request(`/disputes/${disputeId}/close`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Review endpoints
+  async getReviews() {
+    return this.request('/reviews');
+  }
+
+  async getReview(id: string) {
+    return this.request(`/reviews/${id}`);
+  }
+
+  async getUserReviews(userId: string) {
+    return this.request(`/users/${userId}/reviews`);
+  }
+
+  async getProjectReviews(projectId: string) {
+    return this.request(`/projects/${projectId}/reviews`);
+  }
+
+  async createReview(data: {
+    project_id: number;
+    reviewee_id: number;
+    rating: number;
+    comment: string;
+    type: 'consumer_to_provider' | 'provider_to_consumer';
+  }) {
+    return this.request('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateReview(id: string, data: {
+    rating?: number;
+    comment?: string;
+  }) {
+    return this.request(`/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteReview(id: string) {
+    return this.request(`/reviews/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Wallet endpoints
+  async getWallet() {
+    return this.request('/wallet');
+  }
+
+  async getWalletBalance() {
+    return this.request('/wallet/balance');
+  }
+
+  async getWalletTransactions() {
+    return this.request('/wallet/transactions');
+  }
+
+  async addFunds(data: {
+    amount: number;
+    payment_method: string;
+  }) {
+    return this.request('/wallet/add-funds', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async withdraw(data: {
+    amount: number;
+    address: string;
+  }) {
+    return this.request('/wallet/withdraw', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 }

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { mockProjects, mockBids, mockUsers, mockAIBreakdown } from '@/lib/mockData'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { apiClient } from '@/lib/api'
 import { 
   ClockIcon, 
   CurrencyDollarIcon, 
@@ -31,16 +31,88 @@ export default function ProjectDetailPage() {
   const [bidProposal, setBidProposal] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
   const [showBidForm, setShowBidForm] = useState(false)
+  const [project, setProject] = useState<any>(null)
+  const [projectBids, setProjectBids] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setBidSubmitting] = useState(false)
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
-  const project = mockProjects.find(p => p.id === projectId)
-  const projectBids = mockBids.filter(bid => bid.projectId === projectId)
-  const aiBreakdown = project?.aiBreakdown || mockAIBreakdown
+  useEffect(() => {
+    loadProject()
+  }, [projectId])
 
-  if (!project) {
+  const loadProject = async () => {
+    try {
+      setLoading(true)
+      const projectData = await apiClient.getProject(projectId)
+      setProject(projectData)
+      setProjectBids(projectData.bids || [])
+    } catch (err: any) {
+      setError(err.message || 'Failed to load project')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmitBid = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBidSubmitting(true)
+    
+    try {
+      const bidData = {
+        amount: parseFloat(bidAmount),
+        proposal: bidProposal,
+        delivery_time: parseInt(deliveryTime)
+      }
+
+      await apiClient.createBid(projectId, bidData)
+      
+      // Check if bid should be auto-assigned (equal to or lower than budget)
+      const budget = parseFloat(project.budget)
+      const bidAmountNum = parseFloat(bidAmount)
+      
+      if (bidAmountNum <= budget) {
+        setSuccessMessage(`🎉 Congratulations! Your bid of ${formatCurrency(bidAmountNum)} has been automatically accepted as it meets the project budget. The project has been assigned to you!`)
+      } else {
+        setSuccessMessage(`✅ Your bid has been submitted successfully! The client will review it and get back to you.`)
+      }
+      
+      setShowSuccessDialog(true)
+      setShowBidForm(false)
+      setBidAmount('')
+      setBidProposal('')
+      setDeliveryTime('')
+      
+      // Reload project to get updated bids
+      await loadProject()
+      
+    } catch (err: any) {
+      alert('Failed to submit bid: ' + err.message)
+    } finally {
+      setBidSubmitting(false)
+    }
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Project Not Found</h1>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            {error || 'Project Not Found'}
+          </h1>
           <Link href="/projects">
             <Button>Back to Projects</Button>
           </Link>
@@ -49,18 +121,7 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const lowestBid = projectBids.length > 0 ? Math.min(...projectBids.map(bid => bid.amount)) : null
-
-  const handleSubmitBid = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle bid submission
-    console.log('Bid submitted:', { bidAmount, bidProposal, deliveryTime })
-    setShowBidForm(false)
-    // Reset form
-    setBidAmount('')
-    setBidProposal('')
-    setDeliveryTime('')
-  }
+  const lowestBid = projectBids.length > 0 ? Math.min(...projectBids.map(bid => parseFloat(bid.amount))) : null
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -142,7 +203,7 @@ export default function ProjectDetailPage() {
             </Card>
 
             {/* AI Breakdown */}
-            {aiBreakdown && (
+            {project.ai_breakdown && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -150,12 +211,12 @@ export default function ProjectDetailPage() {
                     AI Project Breakdown
                   </CardTitle>
                   <CardDescription>
-                    Powered by Mistral AI - Estimated completion time: {aiBreakdown.estimatedTime} hours
+                    Powered by Mistral AI - Estimated completion time: {project.ai_breakdown.estimatedTime} hours
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {aiBreakdown.steps.map((step) => (
+                    {project.ai_breakdown.steps.map((step: any) => (
                       <div key={step.id} className="border-l-4 border-blue-500 pl-4">
                         <h4 className="font-semibold text-gray-900 mb-1">
                           {step.order}. {step.title}
@@ -171,7 +232,7 @@ export default function ProjectDetailPage() {
                   <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                     <h4 className="font-semibold text-blue-900 mb-2">AI Recommendations:</h4>
                     <ul className="text-sm text-blue-800 space-y-1">
-                      {aiBreakdown.recommendations.map((rec, index) => (
+                      {project.ai_breakdown.recommendations.map((rec: string, index: number) => (
                         <li key={index} className="flex items-start">
                           <CheckCircleIcon className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                           {rec}
@@ -200,32 +261,32 @@ export default function ProjectDetailPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center">
                           <Image
-                            src={bid.provider.avatar || '/placeholder-avatar.png'}
-                            alt={bid.provider.name}
+                            src={bid.user.avatar || '/placeholder-avatar.png'}
+                            alt={bid.user.name}
                             width={40}
                             height={40}
                             className="rounded-full mr-3"
                           />
                           <div>
-                            <h4 className="font-semibold">{bid.provider.name}</h4>
+                            <h4 className="font-semibold">{bid.user.name}</h4>
                             <div className="flex items-center text-sm text-gray-500">
                               <StarIcon className="h-4 w-4 text-yellow-400 mr-1" />
-                              {bid.provider.rating} ({bid.provider.totalProjects} projects)
+                              {bid.user.rating} ({bid.user.total_projects} projects)
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-xl font-bold text-green-600">
-                            {formatCurrency(bid.amount)}
+                            {formatCurrency(parseFloat(bid.amount))}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {bid.deliveryTime} days
+                            {bid.delivery_time} days
                           </div>
                         </div>
                       </div>
                       <p className="text-gray-700 text-sm">{bid.proposal}</p>
                       <div className="mt-3 text-xs text-gray-500">
-                        Submitted {formatDate(bid.createdAt)}
+                        Submitted {formatDate(bid.created_at)}
                       </div>
                     </div>
                   ))}
@@ -290,13 +351,14 @@ export default function ProjectDetailPage() {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <Button type="submit" className="flex-1">
-                          Submit Bid
+                        <Button type="submit" className="flex-1" disabled={submitting}>
+                          {submitting ? 'Submitting...' : 'Submit Bid'}
                         </Button>
                         <Button 
                           type="button" 
                           variant="outline"
                           onClick={() => setShowBidForm(false)}
+                          disabled={submitting}
                         >
                           Cancel
                         </Button>
@@ -361,6 +423,25 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Success Dialog */}
+      {showSuccessDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div className="text-center">
+              <div className="text-4xl mb-4">🎉</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Success!</h3>
+              <p className="text-gray-600 mb-6">{successMessage}</p>
+              <Button 
+                onClick={() => setShowSuccessDialog(false)}
+                className="w-full"
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -70,9 +70,32 @@ class BidController extends Controller
             'delivery_time' => $request->delivery_time,
         ]);
 
+        // Auto-accept bid if amount is equal to or lower than budget
+        if ($request->amount <= $project->budget) {
+            // Accept this bid
+            $bid->update(['status' => 'accepted']);
+            
+            // Reject all other bids
+            $project->bids()->where('id', '!=', $bid->id)->update(['status' => 'rejected']);
+            
+            // Update project status
+            $project->update([
+                'status' => 'in_progress',
+                'assigned_to' => $request->user()->id
+            ]);
+
+            return response()->json([
+                'message' => 'Bid automatically accepted! Project assigned to you.',
+                'bid' => $bid->load('user'),
+                'project' => $project->load('user'),
+                'auto_accepted' => true
+            ], 201);
+        }
+
         return response()->json([
             'message' => 'Bid submitted successfully',
-            'bid' => $bid->load('user')
+            'bid' => $bid->load('user'),
+            'auto_accepted' => false
         ], 201);
     }
 

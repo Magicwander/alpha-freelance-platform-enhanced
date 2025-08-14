@@ -34,11 +34,21 @@ export default function Header() {
             <Link href="/projects" className="text-gray-700 hover:text-blue-600 transition-colors">
               Projects
             </Link>
+            {user && (
+              <>
+                <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Dashboard
+                </Link>
+                <Link href="/reviews" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Reviews
+                </Link>
+                <Link href="/disputes" className="text-gray-700 hover:text-blue-600 transition-colors">
+                  Disputes
+                </Link>
+              </>
+            )}
             <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
               About
-            </Link>
-            <Link href="/how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors">
-              How it Works
             </Link>
           </nav>
 
@@ -110,19 +120,37 @@ export default function Header() {
               >
                 Projects
               </Link>
+              {user && (
+                <>
+                  <Link 
+                    href="/dashboard" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link 
+                    href="/reviews" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Reviews
+                  </Link>
+                  <Link 
+                    href="/disputes" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Disputes
+                  </Link>
+                </>
+              )}
               <Link 
                 href="/about" 
                 className="text-gray-700 hover:text-blue-600 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 About
-              </Link>
-              <Link 
-                href="/how-it-works" 
-                className="text-gray-700 hover:text-blue-600 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                How it Works
               </Link>
               <div className="flex flex-col space-y-2 pt-4 border-t">
                 {!loading && (
