@@ -73,4 +73,32 @@ body {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-20px); }
   }
+  
+  /* Testimonials Carousel Styles */
+  .testimonials-swiper .swiper-pagination {
+    bottom: 0 !important;
+  }
+  
+  .testimonials-swiper .swiper-pagination-bullet {
+    background: #3b82f6 !important;
+    opacity: 0.3 !important;
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  .testimonials-swiper .swiper-pagination-bullet-active {
+    opacity: 1 !important;
+    transform: scale(1.2) !important;
+  }
+  
+  .testimonials-swiper .swiper-slide {
+    height: auto !important;
+    display: flex !important;
+  }
+  
+  .testimonials-swiper .swiper-slide > div {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
 }
