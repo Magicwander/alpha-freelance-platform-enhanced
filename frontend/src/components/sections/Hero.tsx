@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Script from 'next/script'
 import { Button } from '@/components/ui/button'
 import { ArrowRightIcon, PlayIcon } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
@@ -44,6 +45,26 @@ export default function Hero() {
             REVOLUTIONIZED.
           </span>
         </motion.h1>
+
+        {/* UnicornStudio Animation */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 0.3 }}
+          className="flex justify-center mb-8"
+        >
+          <div 
+            data-us-project="aEgUDtc9TLMMHEODmhsU" 
+            style={{ 
+              width: '100%', 
+              maxWidth: '800px', 
+              height: '400px',
+              borderRadius: '20px',
+              overflow: 'hidden'
+            }}
+            className="shadow-2xl"
+          ></div>
+        </motion.div>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -112,6 +133,27 @@ export default function Hero() {
           <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-bounce"></div>
         </div>
       </motion.div>
+
+      {/* UnicornStudio Script */}
+      <Script
+        id="unicorn-studio"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            !function(){
+              if(!window.UnicornStudio){
+                window.UnicornStudio={isInitialized:!1};
+                var i=document.createElement("script");
+                i.src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js",
+                i.onload=function(){
+                  window.UnicornStudio.isInitialized||(UnicornStudio.init(),window.UnicornStudio.isInitialized=!0)
+                },
+                (document.head || document.body).appendChild(i)
+              }
+            }();
+          `
+        }}
+      />
     </section>
   )
 }
