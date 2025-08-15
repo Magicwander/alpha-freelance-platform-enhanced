@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ProjectBreakdownController;
 use App\Http\Controllers\Api\SimpleProjectController;
+use App\Http\Controllers\Api\ReportController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -141,4 +142,10 @@ Route::middleware('api.auth')->group(function () {
         Route::get('/admin/reports/disputes', [AdminController::class, 'generateDisputeReport']);
         Route::get('/admin/export', [AdminController::class, 'exportData']);
     });
+    
+    // Report generation routes
+    Route::get('/reports/user-activity', [ReportController::class, 'userActivity']);
+    Route::get('/reports/payments', [ReportController::class, 'payments']);
+    Route::get('/reports/project-analytics', [ReportController::class, 'projectAnalytics']);
+    Route::get('/reports/platform-stats', [ReportController::class, 'platformStats']);
 });
